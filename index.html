@@ -63,7 +63,6 @@ import { IndexedStorage } from "https://code4fukui.github.io/IndexedStorage/Inde
 
 const storage = await IndexedStorage.create("webmemo1", 1);
 
-console.log(await storage.getItem("memos"));
 const memos = JSON.parse(await storage.getItem("memos") || "{}");
 const saveMemo = async () => {
   await storage.setItem("memos", JSON.stringify(memos));
