@@ -1,0 +1,133 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="icon" href="data:">
+<title>webmemo</title>
+</head><body>
+
+<main>
+<div class=divleft>
+<h1><a href=https://github.com/code4fukui/webmemo/ target=_blank>webmemo</a></h1>
+<input type=text id=infilter placeholder=filter>
+<button id=btnnew>+ new memo</button>
+<div id=divlist></div>
+</div>
+<div id=diveditor></div>
+</main>
+
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+}
+main {
+  display: grid;
+  grid-template-columns: 8em auto;
+  height: 100%;
+}
+.divleft {
+  background-color: #222;
+  color: #eee;
+  padding: .2em;
+  font-size: small;
+}
+h1 {
+  font-size: medium;
+  padding: 0;
+  text-align: left;
+  margin: 0;
+}
+h1 a {
+  text-decoration: none;
+  color: #eee !important;
+}
+.divleft input {
+  width: 90%;
+  margin: 0.3em 0;
+}
+#divlist {
+  overflow: hidden;
+  white-space: nowrap;
+  padding: .5em 0;
+  line-height: 1.3;
+}
+#diveditor {
+  background-color: #222;
+  padding: .3em;
+}
+</style>
+</body>
+
+<script type="module">
+import { monaco } from "https://code4fukui.github.io/monaco-editor/monaco.js";
+import { DateTime } from "https://js.sabae.cc/DateTime.js";
+import { cr } from "https://js.sabae.cc/cr.js";
+import { IndexedStorage } from "https://code4fukui.github.io/IndexedStorage/IndexedStorage.js";
+
+const storage = await IndexedStorage.create("webmemo1", 1);
+
+console.log(await storage.getItem("memos"));
+const memos = JSON.parse(await storage.getItem("memos") || "{}");
+const saveMemo = async () => {
+  await storage.setItem("memos", JSON.stringify(memos));
+};
+
+let currentmemo = null;
+
+const editor = monaco.editor.create(diveditor, {
+  language: "txt",
+  autoIndent: true,
+  //autoIndent: "none",
+  //formatOnPaste: true,
+  //formatOnType: true,
+  tabSize: 2,
+  minimap: { enabled: false },
+  //overflow: "auto",
+  automaticLayout: true,
+  theme: "vs-dark",
+});
+
+const getFirstLine = (s) => {
+  const n = s.indexOf("\n");
+  if (n < 0) return s;
+  return s.substring(0, n);
+};
+
+const showList = () => {
+  const filter = infilter.value;
+
+  divlist.innerHTML = "";
+  for (const item in memos) {
+    const div = cr("div", divlist);
+    if (filter) {
+      const memo = memos[item];
+      if (memo.indexOf(filter) == -1) continue;
+    }
+    //div.textContent = item; // 
+    div.textContent = getFirstLine(memos[item]) || item;
+    div.onclick = () => {
+      currentmemo = item;
+      const txt = memos[item];
+      const timestamp = "\n\n- created: " + item;
+      editor.setValue(!txt.endsWith(timestamp) ? txt + timestamp : txt);
+    };
+  }
+};
+
+editor.getModel().onDidChangeContent(e => {
+  if (!currentmemo) {
+    currentmemo = new DateTime().toString();
+  }
+  memos[currentmemo] = editor.getValue();
+  showList();
+  saveMemo();
+});
+
+btnnew.onclick = () => {
+  currentmemo = null;
+  editor.setValue("");
+};
+
+infilter.onchange = () => {
+  showList();
+};
+
+showList();
+</script>
