@@ -114,7 +114,12 @@ editor.getModel().onDidChangeContent(e => {
   if (!currentmemo) {
     currentmemo = new DateTime().toString();
   }
-  memos[currentmemo] = editor.getValue();
+  const s = editor.getValue();
+  if (s) {
+    memos[currentmemo] = s;
+  } else {
+    delete memos[currentmemo];
+  }
   showList();
   saveMemo();
 });
