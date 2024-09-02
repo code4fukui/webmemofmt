@@ -1,10 +1,10 @@
 <!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="icon" href="data:">
-<title>webmemo</title>
+<title>webmemofmt</title>
 </head><body>
 
 <main>
 <div class=divleft>
-<h1><a href=https://github.com/code4fukui/webmemo/ target=_blank>webmemo</a></h1>
+<h1><a href=https://github.com/code4fukui/webmemo/ target=_blank>webmemofmt</a></h1>
 <input type=text id=infilter placeholder=filter>
 <button id=btnnew>+ new memo</button>
 <div id=divlist></div>
@@ -52,12 +52,12 @@ h1 a {
 #diveditor {
   background-color: #222;
   padding: .3em;
+  color: white;
 }
 </style>
 </body>
 
 <script type="module">
-import { monaco } from "https://code4fukui.github.io/monaco-editor/monaco.js";
 import { DateTime } from "https://js.sabae.cc/DateTime.js";
 import { cr } from "https://js.sabae.cc/cr.js";
 import { IndexedStorage } from "https://code4fukui.github.io/IndexedStorage/IndexedStorage.js";
@@ -71,18 +71,153 @@ const saveMemo = async () => {
 
 let currentmemo = null;
 
-const editor = monaco.editor.create(diveditor, {
-  language: "txt",
-  autoIndent: true,
-  //autoIndent: "none",
-  //formatOnPaste: true,
-  //formatOnType: true,
-  tabSize: 2,
-  minimap: { enabled: false },
-  //overflow: "auto",
-  automaticLayout: true,
-  theme: "vs-dark",
-});
+const fmt = [
+  {
+    name: "記録者",
+    type: "string",
+  },
+  {
+    name: "血圧(BP)",
+    type: "number",
+  },
+  {
+    name: "脈拍(P)",
+    type: "number",
+  },
+  {
+    name: "酸素飽和度(SpO2)",
+    type: "number",
+  },
+  {
+    name: "体温(T)",
+    type: "number",
+  },
+  {
+    name: "起きたこと",
+    type: "text",
+  },
+  {
+    name: "対応したこと",
+    type: "text",
+  },
+  {
+    name: "記録日時",
+    type: "datetime",
+  },
+  {
+    name: "記録場所",
+    type: "gps",
+  },
+];
+
+let latlng = "";
+
+let gpscallback = null;
+const startGPS = (callback) => {
+  gpscallback = callback;
+  if (!navigator.geolocation) {
+    alert("このブラウザーは位置情報に対応していません");
+    gpscallback(null);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(() => {
+      // success
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      latlng = lat.toFixed(6) + "," + lng.toFixed(6);
+      gpscallback(latlng);
+    },
+    () => {
+      alert("GPS測位失敗！");
+      gpscallback(null);
+    }
+  );
+};
+
+const makeFormated = (fmt) => {
+  const tbl = document.createElement("div");
+  tbl.style.display = "grid";
+  tbl.style.gridTemplateColumns = "auto 1f";
+  const comps = {};
+  for (const f of fmt) {
+    const divname = document.createElement("div");
+    divname.textContent = f.name;
+    tbl.appendChild(divname);
+    if (f.type == "number") {
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.style.fontSize = "18px";
+      tbl.appendChild(inp);
+      comps[f.name] = inp;
+    } else if (f.type == "text") {
+      const ta = document.createElement("textarea");
+      ta.style.width = "100%";
+      ta.style.height = "5em";
+      ta.style.fontSize = "18px";
+      tbl.appendChild(ta);
+      comps[f.name] = ta;
+    } else if (f.type == "string") {
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.style.fontSize = "18px";
+      tbl.appendChild(inp);
+      comps[f.name] = inp;
+    } else if (f.type == "gps") {
+      const div = document.createElement("div");
+      const btn = document.createElement("button");
+      btn.textContent = "GPS ON";
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.disabled = true;
+      inp.style.fontSize = "18px";
+      div.appendChild(btn);
+      div.appendChild(inp);
+
+      btn.onclick = () => {
+        if (startGPS((latlng) => {
+          if (latlng) {
+            inp.value = latlng;
+          } else {
+            btn.disabled = false;
+          }
+        })) {
+          btn.disabled = true;
+        };
+      };
+      tbl.appendChild(div);
+      comps[f.name] = inp;
+    } else if (f.type == "datetime") {
+      const inp = document.createElement("input");
+      inp.type = "datetime-local";
+      inp.style.fontSize = "18px";
+      inp.value = new DateTime().toStringLocal();
+      console.log(new DateTime().toStringLocal().replace("T", " "));
+      tbl.appendChild(inp);
+      comps[f.name] = inp;
+    } else {
+      throw new Error("not supported type: " + f.type);
+    }
+  }
+  tbl.getValue = () => {
+    const res = {};
+    for (const f of fmt) {
+      res[f.name] = comps[f.name].value;
+    }
+    return res;
+  };
+  tbl.setValue = (obj) => {
+    for (const name in comps) {
+      comps[name].value = "";
+    }
+    for (const name in obj) {
+      comps[name].value = obj[name];
+    }
+  };
+  return tbl;
+};
+
+const editor = makeFormated(fmt);
+diveditor.appendChild(editor);
 
 const getFirstLine = (s) => {
   const n = s.indexOf("\n");
@@ -98,36 +233,40 @@ const showList = () => {
     const div = cr("div", divlist);
     if (filter) {
       const memo = memos[item];
-      if (memo.indexOf(filter) == -1) continue;
+      let flg = false;
+      for (const name in memo) {
+        if (memo[name].indexOf(filter) >= 0) {
+          flg = true;
+          break;
+        }
+      }
+      if (!flg) continue;
     }
     //div.textContent = item; // 
-    div.textContent = getFirstLine(memos[item]) || item;
+    div.textContent = item; //getFirstLine(memos[item]) || item;
     div.onclick = () => {
-      currentmemo = item;
-      const txt = memos[item];
-      const timestamp = "\n\n- created: " + item;
-      editor.setValue(!txt.endsWith(timestamp) ? txt + timestamp : txt);
+      editor.setValue(memos[item]);
     };
   }
 };
 
-editor.getModel().onDidChangeContent(e => {
+editor.onchange = e => {
   if (!currentmemo) {
     currentmemo = new DateTime().toString();
   }
-  const s = editor.getValue();
-  if (s) {
-    memos[currentmemo] = s;
+  const obj = editor.getValue();
+  if (obj) {
+    memos[currentmemo] = obj;
   } else {
     delete memos[currentmemo];
   }
   showList();
   saveMemo();
-});
+};
 
 btnnew.onclick = () => {
   currentmemo = null;
-  editor.setValue("");
+  editor.setValue({});
 };
 
 infilter.onchange = () => {
