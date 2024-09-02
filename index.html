@@ -17,6 +17,7 @@ body {
   margin: 0;
   height: 100vh;
   font-family: sans-serif;
+  box-sizing: border-box;
 }
 main {
   display: grid;
@@ -62,7 +63,8 @@ import { DateTime } from "https://js.sabae.cc/DateTime.js";
 import { cr } from "https://js.sabae.cc/cr.js";
 import { IndexedStorage } from "https://code4fukui.github.io/IndexedStorage/IndexedStorage.js";
 
-const storage = await IndexedStorage.create("webmemo1", 1);
+const dbname = "webmemofmt1";
+const storage = await IndexedStorage.create(dbname, 1);
 
 const memos = JSON.parse(await storage.getItem("memos") || "{}");
 const saveMemo = async () => {
@@ -113,6 +115,7 @@ const fmt = [
 let latlng = "";
 
 let gpscallback = null;
+let watchid = null;
 const startGPS = (callback) => {
   gpscallback = callback;
   if (!navigator.geolocation) {
@@ -120,7 +123,11 @@ const startGPS = (callback) => {
     gpscallback(null);
     return;
   }
-  navigator.geolocation.getCurrentPosition(() => {
+  if (watchid) {
+    navigator.geolocation.clearWatch(watchid);
+  }
+  watchid = navigator.geolocation.watchPosition(
+    (position) => {
       // success
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
@@ -130,7 +137,12 @@ const startGPS = (callback) => {
     () => {
       alert("GPS測位失敗！");
       gpscallback(null);
-    }
+    },
+    {
+  		enableHighAccuracy: true, // 高精度を要求する
+      timeout: 60 * 1000, // 最大待ち時間（ミリ秒） 60sec
+      maximumAge: 10 * 1000, // キャッシュ有効期間（ミリ秒） 10sec
+    },
   );
 };
 
@@ -151,7 +163,6 @@ const makeFormated = (fmt) => {
       comps[f.name] = inp;
     } else if (f.type == "text") {
       const ta = document.createElement("textarea");
-      ta.style.width = "100%";
       ta.style.height = "5em";
       ta.style.fontSize = "18px";
       tbl.appendChild(ta);
@@ -184,6 +195,10 @@ const makeFormated = (fmt) => {
           btn.disabled = true;
         };
       };
+      if (watchid) {
+        btn.disabled = true;
+        inp.value = latlng;
+      }
       tbl.appendChild(div);
       comps[f.name] = inp;
     } else if (f.type == "datetime") {
@@ -198,6 +213,9 @@ const makeFormated = (fmt) => {
       throw new Error("not supported type: " + f.type);
     }
   }
+  tbl.init = () => {
+
+  };
   tbl.getValue = () => {
     const res = {};
     for (const f of fmt) {
