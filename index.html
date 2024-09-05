@@ -55,6 +55,10 @@ h1 a {
   padding: .3em;
   color: white;
 }
+qr-code {
+  display: block;
+  margin-top: 1.5em;
+}
 </style>
 </body>
 
@@ -62,14 +66,63 @@ h1 a {
 import { DateTime } from "https://js.sabae.cc/DateTime.js";
 import { cr } from "https://js.sabae.cc/cr.js";
 import { IndexedStorage } from "https://code4fukui.github.io/IndexedStorage/IndexedStorage.js";
+import { uuid } from "https://code4fukui.github.io/uuid/uuid.js";
+import { fetchJSON } from "https://js.sabae.cc/fetchJSON.js";
+import { QRCode } from "https://js.sabae.cc/QRCode.js";
+//import { TAI64N } from "https://code4fukui.github.io/TAI64N-es/TAI64N.js";
 
-const dbname = "webmemofmt1";
+const dbname = "webmemofmt2";
 const storage = await IndexedStorage.create(dbname, 1);
 
-const memos = JSON.parse(await storage.getItem("memos") || "{}");
+const getGroupUUID = () => {
+  const uuid1 = location.hash.substring(1);
+  if (uuid1) return uuid1;
+  const uuid2 = uuid();
+  location.hash = uuid2;
+  return uuid2;
+};
+
+const grpname = getGroupUUID();
+
+const getMyUUID = async (name) => {
+  const uuid1 = await storage.getItem("my_uuid");
+  if (uuid1) return uuid1;
+  const uuid2 = uuid();
+  await storage.setItem("my_uuid", uuid2);
+  return uuid2;
+};
+
+const myuuid = await getMyUUID();
+console.log(myuuid);
+
+const memos = JSON.parse(await storage.getItem("memos") || "[]");
+
+const syncServer = async () => {
+  console.log("syncServer", memos);
+  const mymemos = memos.filter(i => i.記録者UUID == myuuid);
+  console.log(memos, mymemos);
+  const path = "https://json-storage.sabae.cc/api/" + dbname + "/" + grpname + "/";
+  const res = await fetchJSON(path + myuuid, mymemos);
+  if (!res) {
+    alert("サーバーへの書き込みに失敗しました。電波のよいところでリトライしてください");
+    return;
+  }
+  const allmemo = await fetchJSON(path);
+  console.log("allmemo", allmemo);
+  if (allmemo) {
+    memos.length = 0;
+    Object.values(allmemo).forEach(i => i.forEach(j => memos.push(j)));
+    memos.sort((a, b) => b.記録日時.localeCompare(a.記録日時)); // 新しい順
+    showList();
+  }
+};
+
 const saveMemo = async () => {
   await storage.setItem("memos", JSON.stringify(memos));
+  //
+  syncServer(memos);
 };
+
 const saveName = async (name) => {
   console.log("saveName", name);
   await storage.setItem("name", name);
@@ -88,7 +141,7 @@ const fmt = [
   },
   {
     name: "血圧(BP)",
-    type: "number",
+    type: "number2",
   },
   {
     name: "脈拍(P)",
@@ -117,6 +170,10 @@ const fmt = [
   {
     name: "記録場所",
     type: "gps",
+  },
+  {
+    name: "記録者UUID",
+    type: "uuid",
   },
 ];
 
@@ -155,6 +212,25 @@ const startGPS = (callback) => {
   return true;
 };
 
+class Number2 {
+  constructor(inp1, inp2) {
+    this.inp1 = inp1;
+    this.inp2 = inp2;
+  }
+  set value(nn) {
+    if (!nn) {
+      this.inp1.value = this.inp2.value = "";
+      return;
+    }
+    const n = nn.split(",");
+    this.inp1.value = n[0];
+    this.inp2.value = n.length > 1 ? n[1] : "";
+  }
+  get value() {
+    return this.inp1.value + "," + this.inp2.value;
+  }
+};
+
 const makeFormated = (fmt) => {
   const tbl = document.createElement("div");
   tbl.style.display = "grid";
@@ -170,6 +246,20 @@ const makeFormated = (fmt) => {
       inp.style.fontSize = "18px";
       tbl.appendChild(inp);
       comps[f.name] = inp;
+    } else if (f.type == "number2") {
+      const div = document.createElement("div");
+      const inp = document.createElement("input");
+      inp.type = "number";
+      inp.style.fontSize = "18px";
+      inp.style.width = "5em";
+      const inp2 = document.createElement("input");
+      inp2.type = "number";
+      inp2.style.width = "5em";
+      inp2.style.fontSize = "18px";
+      div.appendChild(inp);
+      div.appendChild(inp2);
+      tbl.appendChild(div);
+      comps[f.name] = new Number2(inp, inp2);
     } else if (f.type == "text") {
       const ta = document.createElement("textarea");
       ta.style.height = "5em";
@@ -184,7 +274,7 @@ const makeFormated = (fmt) => {
       comps[f.name] = inp;
       inp.onchange = () => saveName(inp.value);
       inp.initfunc = () => {
-        loadName().then(name => inp.value = name);
+        //loadName().then(name => inp.value = name);
       };
       inp.initfunc();
     } else if (f.type == "string") {
@@ -193,6 +283,17 @@ const makeFormated = (fmt) => {
       inp.style.fontSize = "18px";
       tbl.appendChild(inp);
       comps[f.name] = inp;
+    } else if (f.type == "uuid") {
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.disabled = true;
+      inp.style.fontSize = "18px";
+      tbl.appendChild(inp);
+      comps[f.name] = inp;
+      inp.initfunc = () => {
+        inp.value = myuuid;
+      };
+      inp.initfunc();
     } else if (f.type == "gps") {
       const div = document.createElement("div");
       const btn = document.createElement("button");
@@ -201,13 +302,16 @@ const makeFormated = (fmt) => {
       inp.type = "text";
       inp.disabled = true;
       inp.style.fontSize = "18px";
+      const btnmap = document.createElement("button");
+      btnmap.textContent = "地図";
       div.appendChild(btn);
       div.appendChild(inp);
+      div.appendChild(btnmap);
 
       btn.onclick = () => {
         if (startGPS((latlng) => {
           if (latlng) {
-            inp.value = latlng;
+            if (!inp.value) inp.value = latlng; // first only
           } else {
             btn.disabled = false;
           }
@@ -220,6 +324,18 @@ const makeFormated = (fmt) => {
           btn.disabled = true;
           inp.value = latlng;
         }
+      };
+      btnmap.onclick = () => {
+        if (!latlng) return;
+        /*
+        driving：車
+        transit：公共交通機関
+        walking：徒歩
+        bicycling：自転車
+        */
+        const url = "https://www.google.com/maps/dir/?api=1&travelmode=walking&destination=" + latlng;
+        console.log(url);
+        window.open(url, "_blank");       
       };
       inp.initfunc();
       tbl.appendChild(div);
@@ -261,20 +377,32 @@ const makeFormated = (fmt) => {
 const editor = makeFormated(fmt);
 diveditor.appendChild(editor);
 
-const getFirstLine = (s) => {
-  const n = s.indexOf("\n");
-  if (n < 0) return s;
-  return s.substring(0, n);
+const qrcode = new QRCode();
+diveditor.appendChild(qrcode);
+
+const btndel = document.createElement("button");
+btndel.textContent = "このデータを削除する";
+diveditor.appendChild(btndel);
+btndel.onclick = async () => {
+  if (currentmemo === null) return;
+  if (memos[currentmemo].記録者UUID != myuuid) {
+    alert("削除できるのは自分のデータだけです");
+    return;
+  }
+  if (!confirm("本当に消しますか？")) return;
+  memos.splice(currentmemo, 1);
+  currentmemo = null;
+  editor.setValue({ 記録者: await loadName()});
+  await saveMemo();
 };
 
 const showList = () => {
   const filter = infilter.value;
 
   divlist.innerHTML = "";
-  for (const item in memos) {
-    const div = cr("div", divlist);
+  for (let i = 0; i < memos.length; i++) {
+    const memo = memos[i];
     if (filter) {
-      const memo = memos[item];
       let flg = false;
       for (const name in memo) {
         if (memo[name].indexOf(filter) >= 0) {
@@ -284,36 +412,48 @@ const showList = () => {
       }
       if (!flg) continue;
     }
+    const div = cr("div", divlist);
     //div.textContent = item; // 
-    div.textContent = item; //getFirstLine(memos[item]) || item;
+    const makeTitle = (memo) => {
+      const dt = new DateTime(memo.記録日時);
+      const fix2 = (n) => n < 10 ? "0" + n : "" + n;
+      return dt.day.day + "日" + fix2(dt.time.hour) + ":" + fix2(dt.time.min) +" " + memo.記録者;
+    };
+    div.textContent = makeTitle(memo);
     div.onclick = () => {
-      editor.setValue(memos[item]);
+      currentmemo = i;
+      editor.setValue(memo);
     };
   }
 };
 
 editor.onchange = e => {
-  if (!currentmemo) {
-    currentmemo = new DateTime().toString();
-  }
   const obj = editor.getValue();
-  if (obj) {
-    memos[currentmemo] = obj;
+  console.log("onchange", obj, currentmemo);
+  if (obj == null) {
+    //
   } else {
-    delete memos[currentmemo];
+    if (currentmemo === null) {
+      memos.unshift(obj);
+      currentmemo = 0;
+    } else {
+      memos[currentmemo] = obj;
+    }
   }
-  showList();
   saveMemo();
 };
 
-btnnew.onclick = () => {
+btnnew.onclick = async () => {
   currentmemo = null;
-  editor.setValue({});
+  editor.setValue({ 記録者: await loadName()});
 };
 
 infilter.onchange = () => {
   showList();
 };
 
-showList();
+//memos.length = 0; await saveMemo(); // for clear
+
+await syncServer();
+//showList();
 </script>
