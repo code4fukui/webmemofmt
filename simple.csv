@@ -1,0 +1,6 @@
+name,type
+記録者,user
+メモ,text
+記録日時,datetime
+記録場所,gps
+記録者UUID,uuid

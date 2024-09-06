@@ -1,0 +1,11 @@
+name,type
+記録者,user
+血圧(BP),number2
+脈拍(P),number
+酸素飽和度(SpO2),number
+体温(T),number
+起きたこと,text
+対応したこと,text
+記録日時,datetime
+記録場所,gps
+記録者UUID,uuid

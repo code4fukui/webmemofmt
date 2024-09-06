@@ -19,14 +19,6 @@ input {
   padding: 0.2em;
   margin: 0.2em;
   vertical-align: middle;
-  /*
-  padding: 0;
-  margin: 0;
-  width: 96%;
-  padding: 2%;
-  height: 18px;
-  line-height: 18px;
-  */
 }
 
 body {
@@ -86,6 +78,7 @@ import { uuid } from "https://code4fukui.github.io/uuid/uuid.js";
 import { fetchJSON } from "https://js.sabae.cc/fetchJSON.js";
 import { QRCode } from "https://js.sabae.cc/QRCode.js";
 //import { TAI64N } from "https://code4fukui.github.io/TAI64N-es/TAI64N.js";
+import { CSV } from "https://js.sabae.cc/CSV.js";
 
 const dbname = "webmemofmt2";
 const storage = await IndexedStorage.create(dbname, 1);
@@ -109,9 +102,19 @@ const getMyUUID = async (name) => {
 };
 
 const myuuid = await getMyUUID();
-console.log(myuuid);
+let memos = [];
 
-const memos = JSON.parse(await storage.getItem("memos") || "[]");
+const fetchServer = async () => {
+  const path = "https://json-storage.sabae.cc/api/" + dbname + "/" + grpname + "/";
+  const allmemo = await fetchJSON(path);
+  console.log("allmemo", allmemo);
+  if (allmemo) {
+    memos.length = 0;
+    Object.values(allmemo).forEach(i => i.forEach(j => memos.push(j)));
+    memos.sort((a, b) => b.記録日時.localeCompare(a.記録日時)); // 新しい順
+  }
+  return memos;
+};
 
 const syncServer = async () => {
   console.log("syncServer", memos);
@@ -123,13 +126,7 @@ const syncServer = async () => {
       alert("サーバーへの書き込みに失敗しました。管理者にお問い合わせください");
       return;
     }
-    const allmemo = await fetchJSON(path);
-    console.log("allmemo", allmemo);
-    if (allmemo) {
-      memos.length = 0;
-      Object.values(allmemo).forEach(i => i.forEach(j => memos.push(j)));
-      memos.sort((a, b) => b.記録日時.localeCompare(a.記録日時)); // 新しい順
-    }
+    await fetchServer();
   } catch (e) {
     console.log("can't sync with server now");
   }
@@ -138,9 +135,21 @@ const syncServer = async () => {
 
 const saveMemo = async () => {
   await storage.setItem("memos", JSON.stringify(memos));
+  await storage.setItem("grpname", grpname);
   //
   syncServer(memos);
 };
+
+const loadMemo = async () => {
+  const memogrp = await storage.getItem("grpname");
+  console.log("grp", memogrp, grpname);
+  if (memogrp != grpname) {
+    return await fetchServer();
+  }
+  return JSON.parse(await storage.getItem("memos") || "[]");
+};
+
+memos = await loadMemo();
 
 const saveName = async (name) => {
   console.log("saveName", name);
@@ -153,48 +162,11 @@ const loadName = async () => {
 
 let currentmemo = null;
 
-const fmt = [
-  {
-    name: "記録者",
-    type: "user",
-  },
-  {
-    name: "血圧(BP)",
-    type: "number2",
-  },
-  {
-    name: "脈拍(P)",
-    type: "number",
-  },
-  {
-    name: "酸素飽和度(SpO2)",
-    type: "number",
-  },
-  {
-    name: "体温(T)",
-    type: "number",
-  },
-  {
-    name: "起きたこと",
-    type: "text",
-  },
-  {
-    name: "対応したこと",
-    type: "text",
-  },
-  {
-    name: "記録日時",
-    type: "datetime",
-  },
-  {
-    name: "記録場所",
-    type: "gps",
-  },
-  {
-    name: "記録者UUID",
-    type: "uuid",
-  },
-];
+const fmtfn = new URL(document.location).searchParams.get("fmt") ?? "kyugo.csv";
+console.log(fmtfn);
+const fmt = await CSV.fetchJSON(fmtfn);
+
+console.log(CSV.stringify(fmt));
 
 let latlng = "";
 
