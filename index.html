@@ -13,6 +13,22 @@
 </main>
 
 <style>
+input {
+  display: inline-block;
+  border: none;
+  padding: 0.2em;
+  margin: 0.2em;
+  vertical-align: middle;
+  /*
+  padding: 0;
+  margin: 0;
+  width: 96%;
+  padding: 2%;
+  height: 18px;
+  line-height: 18px;
+  */
+}
+
 body {
   margin: 0;
   height: 100vh;
@@ -100,21 +116,24 @@ const memos = JSON.parse(await storage.getItem("memos") || "[]");
 const syncServer = async () => {
   console.log("syncServer", memos);
   const mymemos = memos.filter(i => i.記録者UUID == myuuid);
-  console.log(memos, mymemos);
   const path = "https://json-storage.sabae.cc/api/" + dbname + "/" + grpname + "/";
-  const res = await fetchJSON(path + myuuid, mymemos);
-  if (!res) {
-    alert("サーバーへの書き込みに失敗しました。電波のよいところでリトライしてください");
-    return;
+  try {
+    const res = await fetchJSON(path + myuuid, mymemos);
+    if (!res) {
+      alert("サーバーへの書き込みに失敗しました。管理者にお問い合わせください");
+      return;
+    }
+    const allmemo = await fetchJSON(path);
+    console.log("allmemo", allmemo);
+    if (allmemo) {
+      memos.length = 0;
+      Object.values(allmemo).forEach(i => i.forEach(j => memos.push(j)));
+      memos.sort((a, b) => b.記録日時.localeCompare(a.記録日時)); // 新しい順
+    }
+  } catch (e) {
+    console.log("can't sync with server now");
   }
-  const allmemo = await fetchJSON(path);
-  console.log("allmemo", allmemo);
-  if (allmemo) {
-    memos.length = 0;
-    Object.values(allmemo).forEach(i => i.forEach(j => memos.push(j)));
-    memos.sort((a, b) => b.記録日時.localeCompare(a.記録日時)); // 新しい順
-    showList();
-  }
+  showList();
 };
 
 const saveMemo = async () => {
@@ -277,6 +296,7 @@ const makeFormated = (fmt) => {
         //loadName().then(name => inp.value = name);
       };
       inp.initfunc();
+      loadName().then(name => inp.value = name);
     } else if (f.type == "string") {
       const inp = document.createElement("input");
       inp.type = "text";
@@ -429,16 +449,11 @@ const showList = () => {
 
 editor.onchange = e => {
   const obj = editor.getValue();
-  console.log("onchange", obj, currentmemo);
-  if (obj == null) {
-    //
+  if (currentmemo === null) {
+    memos.unshift(obj);
+    currentmemo = 0;
   } else {
-    if (currentmemo === null) {
-      memos.unshift(obj);
-      currentmemo = 0;
-    } else {
-      memos[currentmemo] = obj;
-    }
+    memos[currentmemo] = obj;
   }
   saveMemo();
 };
