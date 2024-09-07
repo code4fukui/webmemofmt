@@ -225,6 +225,14 @@ class Number2 {
   }
 };
 
+const isMe = () => {
+  const memo = memos[currentmemo];
+  if (!memo) return true;
+  const res = memo.記録者UUID == myuuid;
+  console.log("isme", res);
+  return res;
+};
+
 const makeFormated = (fmt) => {
   const tbl = document.createElement("div");
   tbl.style.display = "grid";
@@ -312,10 +320,15 @@ const makeFormated = (fmt) => {
       div.appendChild(inp);
       div.appendChild(btnmap);
 
+      const setLL = (latlng) => {
+        if (!inp.value && isMe()) {
+          inp.value = latlng; // first only
+        }
+      };
       btn.onclick = () => {
         if (startGPS((latlng) => {
           if (latlng) {
-            if (!inp.value) inp.value = latlng; // first only
+            setLL(latlng);
           } else {
             btn.disabled = false;
           }
@@ -324,9 +337,15 @@ const makeFormated = (fmt) => {
         };
       };
       inp.initfunc = () => {
+        if (!isMe()) {
+          btn.disabled = true;
+          return;
+        }
         if (watchid) {
           btn.disabled = true;
-          inp.value = latlng;
+          setLL(latlng);
+        } else {
+          btn.disabled = false;
         }
       };
       btnmap.onclick = () => {
