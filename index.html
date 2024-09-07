@@ -240,9 +240,9 @@ const makeFormated = (fmt) => {
       inp.style.fontSize = "18px";
       tbl.appendChild(inp);
       comps[f.name] = inp;
-    } else if (f.type == "sex") {
+    } else if (f.type == "select") {
       const sel = document.createElement("select");
-      for (const opt of ["-", "男性", "女性"]) {
+      for (const opt of f.options.split(",")) {
         const o = document.createElement("option");
         o.textContent = opt;
         sel.appendChild(o);
