@@ -1,5 +1,7 @@
 name,type
 記録者,user
+性別,sex
+年齢,number
 血圧(BP),number2
 脈拍(P),number
 酸素飽和度(SpO2),number

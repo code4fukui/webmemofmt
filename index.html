@@ -13,7 +13,7 @@
 </main>
 
 <style>
-input {
+input, select, textarea, button {
   display: inline-block;
   border: none;
   padding: 0.2em;
@@ -66,6 +66,9 @@ h1 a {
 qr-code {
   display: block;
   margin-top: 1.5em;
+}
+select {
+  font-size: 18px;
 }
 </style>
 </body>
@@ -237,6 +240,15 @@ const makeFormated = (fmt) => {
       inp.style.fontSize = "18px";
       tbl.appendChild(inp);
       comps[f.name] = inp;
+    } else if (f.type == "sex") {
+      const sel = document.createElement("select");
+      for (const opt of ["-", "男性", "女性"]) {
+        const o = document.createElement("option");
+        o.textContent = opt;
+        sel.appendChild(o);
+      }
+      tbl.appendChild(sel);
+      comps[f.name] = sel;
     } else if (f.type == "number2") {
       const div = document.createElement("div");
       const inp = document.createElement("input");
@@ -253,7 +265,7 @@ const makeFormated = (fmt) => {
       comps[f.name] = new Number2(inp, inp2);
     } else if (f.type == "text") {
       const ta = document.createElement("textarea");
-      ta.style.height = "5em";
+      ta.style.height = "6em";
       ta.style.fontSize = "18px";
       tbl.appendChild(ta);
       comps[f.name] = ta;
