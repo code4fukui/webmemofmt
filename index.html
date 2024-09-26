@@ -443,7 +443,8 @@ const showList = () => {
       try {
         const dt = new DateTime(memo.記録日時);
         const fix2 = (n) => n < 10 ? "0" + n : "" + n;
-        return dt.day.day + "日" + fix2(dt.time.hour) + ":" + fix2(dt.time.min) + " " + memo.記録者;
+        const title = fmtfn == "hoken.csv" ? memo.名前 : memo.記録者;
+        return dt.day.day + "日" + fix2(dt.time.hour) + ":" + fix2(dt.time.min) + " " + title;
       } catch (e) {
         console.log("err", memo.記録日時);
         return "- " + memo.記録者;
