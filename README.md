@@ -1,26 +1,38 @@
 # webmemofmt
-日本語のREADMEはこちらです: [README.ja.md](README.ja.md)
 
-A simple web-based memo application with a customizable data format.
+A Web/Code project by [Code for FUKUI](https://github.com/code4fukui).
+
+**Live demo**: https://code4fukui.github.io/webmemo/
 
 ## Features
-- Store memos with customizable data fields
-- Synchronized across multiple devices via a cloud storage API
-- Supports GPS location tracking
-- Allows downloading memos as a CSV file
 
-## Requirements
-The application runs in any modern web browser. No additional software is required.
+- Persistent local storage via IndexedDB
+- QR code generation
+- CSV data parsing
 
-## Usage
-1. Open the [webmemofmt](https://code4fukui.github.io/webmemo/) website in your web browser.
-2. Click the "+ new memo" button to create a new memo.
-3. Fill out the memo details using the customizable data fields.
-4. The memo will be automatically saved and synchronized with the cloud storage.
-5. Click the "download CSV" button to export all memos as a CSV file.
+## Technology Stack
 
-## Data / API
-The application uses the [JSON Storage API](https://json-storage.sabae.cc/) to synchronize memos across devices.
+**Browser modules (ES imports):**
+
+- [`DateTime.js`](https://js.sabae.cc/DateTime.js)
+- [`cr.js`](https://js.sabae.cc/cr.js)
+- [`IndexedStorage.js`](https://code4fukui.github.io/IndexedStorage/IndexedStorage.js)
+- [`uuid.js`](https://code4fukui.github.io/uuid/uuid.js)
+- [`fetchJSON.js`](https://js.sabae.cc/fetchJSON.js)
+- [`QRCode.js`](https://js.sabae.cc/QRCode.js)
+- [`TAI64N.js`](https://code4fukui.github.io/TAI64N-es/TAI64N.js)
+- [`CSV.js`](https://js.sabae.cc/CSV.js)
+
+
+## Installation & Setup
+
+No build step required. Clone the repository and open `index.html` in a browser,
+or visit the live demo at https://code4fukui.github.io/webmemo/
+
+## Contributing
+
+Contributions are welcome. Please open an issue or pull request on GitHub.
 
 ## License
-This project is licensed under the [MIT License](LICENSE).
+
+MIT License. See [LICENSE](./LICENSE) for details.
